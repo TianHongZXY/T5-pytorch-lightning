@@ -37,129 +37,124 @@ from fengshen import T5Tokenizer as fengshenT5Tokenizer
 
 
 
-class LightningDataModule(pl.LightningDataModule):
+class LightningDataModel(pl.LightningDataModule):
     """ PyTorch Lightning data class """
     @staticmethod
     def add_data_specific_args(parent_parser):
-        parser = parent_parser.add_argument_group('DataModel')
-        #  parser.add_argument('--data_dir',
-        #                      default='./data',
-        #                      type=str)
-        #  parser.add_argument('--num_workers', default=8, type=int)
-        #  parser.add_argument('--train_data', default='train.json', type=str)
-        #  parser.add_argument('--valid_data', default='dev.json', type=str)
-        #  parser.add_argument('--test_data', default='test.json', type=str)
-        #  parser.add_argument('--cached_train_data',
-        #                      default='cached_train_data.pkl',
-        #                      type=str)
-        #  parser.add_argument('--cached_valid_data',
-        #                      default='cached_valid_data.pkl',
-        #                      type=str)
-        #  parser.add_argument('--cached_test_data',
-        #                      default='cached_test_data.pkl',
-        #                      type=str)
-        #  parser.add_argument('--train_batchsize', default=16, type=int)
-        #  parser.add_argument('--valid_batchsize', default=32, type=int)
+        parser = parent_parser.add_argument_group('LightningDataModel')
+        parser.add_argument('--data_dir',
+                            default='./data',
+                            type=str)
+        parser.add_argument('--num_workers', default=8, type=int)
+        parser.add_argument('--train_data', default=None, type=str)
+        parser.add_argument('--valid_data', default=None, type=str)
+        parser.add_argument('--test_data', default=None, type=str)
+        parser.add_argument('--cached_train_data',
+                            default='cached_train_data.pkl',
+                            type=str)
+        parser.add_argument('--cached_valid_data',
+                            default='cached_valid_data.pkl',
+                            type=str)
+        parser.add_argument('--cached_test_data',
+                            default='cached_test_data.pkl',
+                            type=str)
+        parser.add_argument('--train_batch_size', default=4, type=int)
+        parser.add_argument('--valid_batch_size', default=4, type=int)
+        parser.add_argument('--corruption_rate', default=0.15, type=float)
+        parser.add_argument('--max_extra_id', default=100, type=int)
+        parser.add_argument('--source_max_token_len', default=512, type=int)
+        parser.add_argument('--target_max_token_len', default=512, type=int) # int(source_max_token_len * corruption_rate * 1.5)
         #  parser.add_argument('--recreate_dataset', action='store_true', default=False)
-        parser.add_argument('--batch_size', default=6, type=int)
 
         return parent_parser
 
     def __init__(
         self,
-        args,
-        train_dataset,
-        #  train_df: pd.DataFrame,
-        #  test_df: pd.DataFrame,
-        #  tokenizer: PreTrainedTokenizer,
-        #  batch_size: int = 4,
-        #  source_max_token_len: int = 512,
-        #  target_max_token_len: int = 512,
-        #  num_workers: int = 2,
+        train_dataset: torch.utils.data.Dataset,
+        valid_dataset: torch.utils.data.Dataset = None,
+        test_dataset: torch.utils.data.Dataset = None,
+        train_batch_size: int = 4,
+        valid_batch_size: int = 4,
+        num_workers: int = 8,
     ):
         """
         initiates a PyTorch Lightning Data Module
         Args:
-            train_df (pd.DataFrame): training dataframe. Dataframe must contain 2 columns --> "source_text" & "target_text"
-            test_df (pd.DataFrame): validation dataframe. Dataframe must contain 2 columns --> "source_text" & "target_text"
-            tokenizer (PreTrainedTokenizer): PreTrainedTokenizer (T5Tokenizer, MT5Tokenizer, or ByT5Tokenizer)
-            batch_size (int, optional): batch size. Defaults to 4.
-            source_max_token_len (int, optional): max token length of source text. Defaults to 512.
-            target_max_token_len (int, optional): max token length of target text. Defaults to 512.
+            train_dataset (torch.utils.data.Dataset): train dataset.
+            valid_dataset (torch.utils.data.Dataset, optional): valid dataset.
+            test_dataset (torch.utils.data.Dataset, optional): test dataset.
+            train_batch_size (int, optional): batch size. Defaults to 4.
+            valid_batch_size (int, optional): batch size. Defaults to 4.
+            num_workers (int, optional): num workers for dataloader. Defaults to 8.
         """
         super().__init__()
 
-        self.args = args
         self.train_dataset = train_dataset
-        #  self.train_df = train_df
-        #  self.test_df = test_df
-        #  self.batch_size = batch_size
-        #  self.tokenizer = tokenizer
-        #  self.source_max_token_len = source_max_token_len
-        #  self.target_max_token_len = target_max_token_len
-        #  self.num_workers = num_workers
+        self.valid_dataset = valid_dataset
+        self.test_dataset = test_dataset
+        self.train_batch_size = train_batch_size
+        self.valid_batch_size = valid_batch_size
+        self.num_workers = num_workers
 
     def setup(self, stage=None):
         pass
-        #  if stage == "fit"
-        #  self.train_dataset = PyTorchDataModule(
-        #      self.train_df,
-        #      self.tokenizer,
-        #      self.source_max_token_len,
-        #      self.target_max_token_len,
-        #  )
-        #  self.test_dataset = PyTorchDataModule(
-        #      self.test_df,
-        #      self.tokenizer,
-        #      self.source_max_token_len,
-        #      self.target_max_token_len,
-        #  )
 
     def train_dataloader(self):
-        """ training dataloader """
         return DataLoader(
             self.train_dataset,
-            batch_size=self.args.batch_size,
+            batch_size=self.train_batch_size,
             shuffle=True,
-            num_workers=16,
+            num_workers=self.num_workers,
             pin_memory=True,
         )
 
-    #  def test_dataloader(self):
-    #      """ test dataloader """
-    #      return DataLoader(
-    #          self.test_dataset,
-    #          batch_size=self.batch_size,
-    #          shuffle=False,
-    #          num_workers=self.num_workers,
-    #      )
-    #
-    #  def val_dataloader(self):
-    #      """ validation dataloader """
-    #      return DataLoader(
-    #          self.test_dataset,
-    #          batch_size=self.batch_size,
-    #          shuffle=False,
-    #          num_workers=self.num_workers,
-    #      )
+    def val_dataloader(self):
+        if self.valid_dataset is not None:
+            return DataLoader(
+                self.valid_dataset,
+                batch_size=self.valid_batch_size,
+                shuffle=False,
+                num_workers=self.num_workers,
+                pin_memory=True,
+            )
+        else:
+            pass
 
-#TODO 然后把data统一到一个datamodule里，然后探索一下span corruption
-class ContextData(Dataset):
+    def test_dataloader(self):
+        if self.test_dataset is not None:
+            return DataLoader(
+                self.test_dataset,
+                batch_size=self.valid_batch_size,
+                shuffle=False,
+                num_workers=self.num_workers,
+                pin_memory=True,
+            )
+        else:
+            pass
+
+
+class T5Dataset(Dataset):
     def __init__(
         self,
-        raw_text:List[str],
-        tokenizer:PreTrainedTokenizer,
-        source_max_token_len:int=512,
-        target_max_token_len:int=512,
-        corruption_rate:float=0.15,
-        max_extra_id:int=100,
+        raw_text: List[str],
+        tokenizer: PreTrainedTokenizer,
+        source_max_token_len: int = 512,
+        target_max_token_len: int = 512,
+        corruption_rate: float = 0.15,
+        max_extra_id: int = 100,
     ):
-        #  if not isinstance(raw_text, pd.DataFrame):
-        #      self.raw_text = pd.DataFrame({'raw_text':raw_text})
-        #      print(self.raw_text.head())
-        #  else:
+        """
+        Dataset for training T5
+        Args:
+            raw_context (list[str]): raw context
+            tokenizer (PreTrainedTokenizer): tokenizer of model
+            source_max_token_len (int, optional): max length of source sequence
+            target_max_token_len (int, optional: max length of target sequence
+            corruption_rate (float, optional): rate of span corruption pre-train task
+            max_extra_id (int, optional): max number of corrupted span per context
+        """
         print("Initial number of raw context samples: ", len(raw_text))
-        #  assert all raw_text is already tokenized, otherwise tokenize them using given tokenizer
+        #  assert raw_text is a list containing text samples
         assert isinstance(raw_text, (list, tuple)
             ), f"raw_text must be list or tuple, but type {type(raw_text)} is given"
         assert all(isinstance(t, str) for t in raw_text)
@@ -190,7 +185,6 @@ class ContextData(Dataset):
         
     def __len__(self):
         return len(self.tokenized_text)
-
 
     def qa_getitem(self, str_context: str):
         colon = str_context[2]
@@ -241,6 +235,7 @@ class ContextData(Dataset):
         # lm data
         #  else:
         #      context_row = self.lm_getitem(str_context)
+
         # tokenize separately 
         source_text = context_row[0]
         target_text = context_row[1]
@@ -300,7 +295,6 @@ class BaseSeq2SeqModel(pl.LightningModule):
         parser.add_argument('--show_training_ex', default=-1, type=int)
         parser.add_argument('--model_type', default=None, type=str)
         parser.add_argument('--model_name', default=None, type=str)
-        #  parser.add_argument('--save_dir', default='./save', type=str)
 
         return parent_parser
 
@@ -312,7 +306,7 @@ class BaseSeq2SeqModel(pl.LightningModule):
         Args:
             tokenizer : T5/MT5/ByT5 tokenizer
             model : T5/MT5/ByT5 model
-            outputdir (str, optional): output directory to save model checkpoints. Defaults to "outputs".
+            save_dir (str, optional): output directory to save model checkpoints. Defaults to "outputs".
             save_only_last_epoch (bool, optional): If True, save just the last epoch else models are saved for every epoch
         """
         super().__init__()
@@ -328,7 +322,7 @@ class BaseSeq2SeqModel(pl.LightningModule):
 
     def setup(self, stage) -> None:
         if stage == 'fit':
-            train_loader = self.trainer.datamodule.train_dataloader()  # self.trainer.train_dataloader
+            train_loader = self.trainer.datamodule.train_dataloader()
             num_gpus = self.trainer.gpus if self.trainer.gpus is not None else 0
             self.total_step = int(self.trainer.max_epochs * len(train_loader) / \
                 (max(1, num_gpus) * self.trainer.accumulate_grad_batches))
@@ -373,12 +367,10 @@ class BaseSeq2SeqModel(pl.LightningModule):
             print('-' * 50)
             print('input_token:     ', input_tokens.replace('[PAD]', ''))
             print('-' * 50)
-            print('predicted_tokens:', predicted_tokens.replace('[PAD]','').replace('[EOS]',''))
+            print('predicted_tokens:', predicted_tokens.replace('[PAD]','').replace('[EOS]','').split('[SEP]')[0])
             print('-' * 50)
             print('labels_tokens:   ', labels_tokens.replace('[PAD]','').replace('[UNK]', ''))
             print('-' * 50)
-            # prediction_label_pair = list(zip(predicted_tokens, labels_tokens))
-            # print(prediction_label_pair[0])
 
         self.log("train_loss", loss, prog_bar=True, logger=True, on_step=True, batch_size=batch_size)
         ts_logger = self.logger.experiment
@@ -405,6 +397,7 @@ class BaseSeq2SeqModel(pl.LightningModule):
         )
 
         self.log("val_loss", loss, prog_bar=True, logger=True, on_step=True, batch_size=batch_size)
+
         return loss
 
     def test_step(self, batch, batch_idx):
@@ -423,6 +416,7 @@ class BaseSeq2SeqModel(pl.LightningModule):
         )
 
         self.log("test_loss", loss, prog_bar=True, logger=True, on_step=True, batch_size=batch_size)
+
         return loss
 
     def configure_optimizers(self):
@@ -458,7 +452,7 @@ class BaseSeq2SeqModel(pl.LightningModule):
             4,
         )
         self.log("avg_train_loss", self.average_training_loss, prog_bar=True, logger=True, on_epoch=True)
-        #  path = f"{self.hparams.outputdir}/epoch-{self.current_epoch}-train-loss-{str(self.average_training_loss)}"
+        #  path = f"{self.hparams.save_dir}/epoch-{self.current_epoch}-train-loss-{str(self.average_training_loss)}"
         #  self.tokenizer.save_pretrained(path)
         #  self.model.save_pretrained(path)
 
@@ -495,20 +489,20 @@ class BaseSeq2SeqModel(pl.LightningModule):
         skip_special_tokens: bool = True,
     ):
         """
-        generates prediction for T5/MT5 model
+        generates prediction for model
         Args:
             source_texts (list[str]): sequence of texts for generating predictions
             max_length (int, optional): max token length of prediction. Defaults to 512.
             num_return_sequences (int, optional): number of predictions to be returned. Defaults to 1.
-            num_beams (int, optional): number of beams. Defaults to 2.
-            top_k (int, optional): Defaults to 100.
-            top_p (float, optional): Defaults to 0.95.
+            num_beams (int, optional): number of beams. Defaults to 1.
+            top_k (int, optional): Defaults to 50.
+            top_p (float, optional): Defaults to 0.9.
             do_sample (bool, optional): Defaults to True.
-            repetition_penalty (float, optional): Defaults to 2.5.
-            length_penalty (float, optional): Defaults to 1.0.
+            repetition_penalty (float, optional): Defaults not used.
+            no_repeat_ngram_size (int, optional): Defaults not used.
+            length_penalty (float, optional): Defaults not used.
             early_stopping (bool, optional): Defaults to True.
             skip_special_tokens (bool, optional): Defaults to True.
-            clean_up_tokenization_spaces (bool, optional): Defaults to True.
 
         Returns:
             list[str]: returns predictions
@@ -532,9 +526,9 @@ class BaseSeq2SeqModel(pl.LightningModule):
             num_return_sequences=num_return_sequences,
         )
         # if num_return_sequences>1, then batch_decode returns batch_size * num_return_sequences results
-        preds = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=skip_special_tokens)
+        predictions  = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=skip_special_tokens)
 
-        return preds
+        return predictions
 
 
 class T5LightningModel(BaseSeq2SeqModel):
@@ -546,7 +540,7 @@ class T5LightningModel(BaseSeq2SeqModel):
         Args:
             tokenizer : T5/MT5/ByT5 tokenizer
             model : T5/MT5/ByT5 model
-            outputdir (str, optional): output directory to save model checkpoints. Defaults to "outputs".
+            save_dir (str, optional): output directory to save model checkpoints. Defaults to "outputs".
             save_only_last_epoch (bool, optional): If True, save just the last epoch else models are saved for every epoch
         """
         super().__init__(args)
@@ -571,7 +565,7 @@ class T5LightningModel(BaseSeq2SeqModel):
     def configure_optimizers(self):
         """ configure optimizers """
         #  paras = list(filter(lambda p: p.requires_grad, self.parameters()))
-        paras = self.parameters()
+        paras = list(filter(lambda p: p.requires_grad, self.parameters()))
         #  T5一般用Adafactor而不是Adam
         optimizer = Adafactor(paras, lr=self.hparams.lr, scale_parameter=False, relative_step=False)
         #  fine-tune时T5用warmup + fixed lr一般来说效果比较好, see https://discuss.huggingface.co/t/t5-finetuning-tips/684/3
@@ -627,54 +621,46 @@ class Seq2SeqTrainer:
         """
         Add model specific args
         Args:
-            show_training_ex(int, optional): print the training examples for the batch idx. Set to -1 to disable.
+            patience(int, optional): monitors metric on epoch end and stops training, if metric does not improve after the specied number of epochs. set 0 to disable early stopping. Defaults to 3
+            save_dir (str, optional): root save directory
+            Additional args from pytorch-lightning Trainer:
+                max_epoch(int, optional): max number of training epochs for each corruption on the dataset
+                gpu_nums(int, optional): Number of gpus used for multi-gpu training. Set to 0 to disable gpus.
+                precision(int, optional): Precision of float used in training. 16 or 32.
+                strategy(str, optional): Supports different training strategies with aliases
+                    as well custom training type plugins.
+                etc.
         Returns:
             parent_parser
         """
         parser = parent_parser.add_argument_group('Seq2SeqTrainer')
-        # * Args for model setting
-        parser.add_argument('--corruption_rate', default=0.15, type=float)
-        parser.add_argument('--max_extra_id', default=100, type=int)
-        parser.add_argument('--source_max_token_len', default=512, type=int)
-        parser.add_argument('--target_max_token_len', default=512, type=int) # int(source_max_token_len * corruption_rate * 1.5)
-        # TODO 把属于data的参数放到datamodule里面
-        parser.add_argument('--patience', default=10, type=int)
-        #  parser.add_argument('--save_dir', default='./save', type=str)
+        # * Args for trainer setting
+        parser.add_argument('--patience', default=3, type=int)
+        parser.add_argument('--save_dir', default='./outputs', type=str)
+        parser.add_argument('--save_top_k', default=-1, type=int)
+        parser.add_argument('--monitor', default='val_loss', type=str)
+        parser.add_argument('--mode', default='min', type=str)
+
+        parent_parser = pl.Trainer.add_argparse_args(parent_parser=parent_parser)
 
         return parent_parser
 
-    def __init__(self, model:BaseSeq2SeqModel, tokenizer:Union[T5Tokenizer, MT5Tokenizer]) -> None:
-        """initiates a Seq2SeqTrainer class, defines training procedures for seq2seq model like T5"""
-        self.model = model
-        self.tokenizer = tokenizer
-    
-    def train_span_corruption(
-        self,
-        args,
-        train_context:List[str],
-    ):
-        #TODO 不要把所有参数都放到args去访问，不然都不知道传进来哪些参数，应该在函数声明中保留所有的参数，但外面都用args.xxx传进来
+    def __init__(self, args, model:BaseSeq2SeqModel) -> None:
         """
-        Train (Unsupervised pretraining) Seq2Seq Model with Span Corruption.
+        initiates a Seq2SeqTrainer class, defines training procedures for seq2seq model like T5
         Args:
             args: contain trainer and callback parameters
-            train_context(list[str]): raw train context
-            source_max_token_len(int, optional): max length of source sequence
-            target_max_token_len(int, optional: max length of target sequence
-            batch_size(int, optional): training batch size
-            max_epoch(int, optional): max number of training epochs for each corruption on the dataset
-            gpu_nums(int, optional): Number of gpus used for multi-gpu training. Set to 0 to disable gpus. 
-            early_stopping_patience_epochs (int, optional): monitors val_loss on epoch end and stops training, if val_loss does not improve after the specied number of epochs. set 0 to disable early stopping. Defaults to 0 (disabled)
-            precision(int, optional): Precision of float used in training. 16 or 32. 
+            model: seq2seq model to train
         """
+        self.model = model
         callbacks = [TQDMProgressBar(refresh_rate=100)]
         lr_callback = LearningRateMonitor(logging_interval="step")
         callbacks.append(lr_callback)
-        checkpoint = ModelCheckpoint(dirpath=args.outputdir,
-                                     save_top_k=-1,
+        checkpoint = ModelCheckpoint(dirpath=args.save_dir,
+                                     save_top_k=args.save_top_k,
                                      save_last=True,
-                                     monitor='avg_train_loss',
-                                     mode='min',
+                                     monitor=args.monitor,
+                                     mode=args.mode,
                                      filename='{epoch:02d}-{avg_train_loss:.4f}',
                                      )
         checkpoint.CHECKPOINT_NAME_LAST = "last-{epoch:02d}-{avg_train_loss:.4f}"
@@ -682,113 +668,29 @@ class Seq2SeqTrainer:
 
         if args.patience > 0:
             early_stop_callback = EarlyStopping(
-                monitor="avg_train_loss",
+                monitor=args.monitor,
                 min_delta=0.00,
                 patience=args.patience,
                 verbose=True,
-                mode="min",
+                mode=args.mode,
                 check_on_train_epoch_end=True,  # Check early stopping after every train epoch, ignore multi validation in one train epoch
             )
             callbacks.append(early_stop_callback)
 
-        logger = loggers.TensorBoardLogger(save_dir=os.path.join(args.outputdir, 'logs/'), name="default")
-        trainer = pl.Trainer.from_argparse_args(
+        logger = loggers.TensorBoardLogger(save_dir=os.path.join(args.save_dir, 'logs/'), name="default")
+        self.trainer = pl.Trainer.from_argparse_args(
             args,
             logger=logger,
             callbacks=callbacks,
             plugins=DDPPlugin(find_unused_parameters=False),
         )
 
-        # process corruption within ContextData
-        #  train_context, val_context = train_test_split(train_context, test_size=0.2)
-
-        self.train_dataset = ContextData(
-            train_context,
-            self.tokenizer,
-            source_max_token_len=args.source_max_token_len,
-            target_max_token_len=args.target_max_token_len,
-            corruption_rate=args.corruption_rate,
-            max_extra_id=args.max_extra_id,
-        )
-        self.data_model = LightningDataModule(args, self.train_dataset)
-        # DataLoader
-        #  self.train_dataloader = DataLoader(
-        #      self.train_dataset,
-        #      batch_size=args.batch_size,
-        #      shuffle=True,
-        #      num_workers=16,
-        #      pin_memory=True,
-        #  )
-
-        #  self.val_dataset = ContextData(
-        #      val_context,
-        #      self.tokenizer,
-        #      source_max_token_len=source_max_token_len,
-        #      target_max_token_len=target_max_token_len,
-        #      corruption_rate=corruption_rate,
-        #  )
-        #  self.val_dataloader = DataLoader(
-        #      self.val_dataset,
-        #      batch_size=batch_size,
-        #      shuffle=False,
-        #      num_workers=4,
-        #  )
-
+    def train(self, data_model: pl.LightningDataModule):
+        """
+        Train seq2seq model with given data model.
+        Args:
+            data_model: lightning data module
+        """
         # Train
-        trainer.fit(self.model, 
-                    train_dataloaders=self.data_model,
-                    #  train_dataloaders=self.train_dataloader,
-                    #  val_dataloaders=self.val_dataloader,
-                    )
-
-    #  def train_supervised(
-    #      self,
-    #      train_data,
-    #      source_max_token_len:int=512,
-    #      target_max_token_len:int=512,
-    #      batch_size:int=8,
-    #      max_epochs:int=2,
-    #      gpu_nums:int=1,
-    #      precision:int=32,
-    #      outputdir:str=None,
-    #      show_training_ex: int=-1
-    #  ):
-    #      """
-    #      Train (supervised finetuning) Seq2Seq Model.
-    #      Args:
-    #          train_data(list[tuple[str, str]] or pd.Dataframe): training dataset
-    #          source_max_token_len(int, optional): max length of source sequence
-    #          target_max_token_len(int, optional: max length of target sequence
-    #          batch_size(int, optional): training batch size
-    #          max_epoch(int, optional): max number of training epochs for each corruption on the dataset
-    #          gpu_nums(int, optional): Number of gpus used for multi-gpu training. Set to 0 to disable gpus.
-    #          precision(int, optional): Precision of float used in training. 16 or 32.
-    #          outputdir(str, optional): output directory for saving trained model.
-    #      """
-    #      self.T5Model = BaseSeq2SeqModel(
-    #          tokenizer=self.tokenizer,
-    #          model=self.model,
-    #          outputdir=outputdir,
-    #          show_training_ex=show_training_ex
-    #      )
-    #      trainer = pl.Trainer(
-    #          max_epochs=max_epochs,
-    #          gpus=gpu_nums,
-    #          progress_bar_refresh_rate=50,
-    #          precision=precision,
-    #          check_val_every_n_epoch=1
-    #      )
-    #      self.train_dataset = SupervisedData(
-    #          train_data,
-    #          self.tokenizer,
-    #          source_max_token_len,
-    #          target_max_token_len
-    #      )
-    #      self.train_dataloader = DataLoader(
-    #          self.train_dataset,
-    #          batch_size=batch_size,
-    #          shuffle=True,
-    #          num_workers=2
-    #      )
-    #      trainer.fit(self.T5Model, train_dataloaders=self.train_dataloader)
+        self.trainer.fit(self.model, datamodule=data_model)
 

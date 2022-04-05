@@ -67,10 +67,10 @@ def get_training_data(data_path, segmented):
         return all_contexts
 
 
-def get_training_data_lightning(data_path):
+def get_data_lightning(data_path):
     with open(data_path) as f:
-        train_data = f.readlines()
-    all_contexts = list(train_data)
+        data = f.readlines()
+    all_contexts = list(data)
     return all_contexts
 
 
