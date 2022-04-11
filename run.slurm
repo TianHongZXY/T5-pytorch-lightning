@@ -5,14 +5,14 @@
 #SBATCH -N 1
 #SBATCH --cpus-per-task=32
 #SBATCH --gres=gpu:4
-#SBATCH -o logs/out_randeng_celebrity_cmrc_separated-%j.log
-#SBATCH -e errs/err_randeng_celebrity_cmrc_separated-%j.err
+#SBATCH -o logs/out_mt5_celebrity_cmrc_separated-%j.log
+#SBATCH -e errs/err_mt5_celebrity_cmrc_separated-%j.err
 
 # ZERO_STAGE=3
 # 
 # config_json="./ds_config.$SLURM_JOBID.json"
 
-# Deepspeed figures out GAS dynamically from dynamic GBS via set_train_batch_size()
+# Deepspeed figures out GAS dynamically from dynamic GBS via set_micro_batch_size()
 # cat <<EOT > $config_json
 # {
 #   "train_micro_batch_size_per_gpu": 16,
@@ -62,11 +62,11 @@ echo "START TIME: $(date)"
 ROOT_DIR=/cognitive_comp/zhuxinyu/codes/t5_mrc_zxy
 
 TRAINER_ARGS="
-    --max_epochs 1000 \
-    --gpus 1 \
-    --patience 5 \
+    --max_epochs 200 \
+    --gpus 4 \
+    --patience 10 \
     --log_every_n_steps 10 \
-    --precision 16 \
+    --precision bf16 \
     --save_dir $ROOT_DIR/outputs \
     --save_top_k -1 \
     --monitor avg_train_loss \
@@ -82,18 +82,19 @@ DATA_ARGS="
     --data_dir $DATA_DIR \
     --train_data celebrity_rm_citation_index_for_lightning_cmrc_separated.txt \
     --num_workers 32 \
-    --train_batch_size 4 \
+    --micro_batch_size 2 \
+    --global_batch_size 128 \
     --valid_batch_size 4 \
     --corruption_rate 0.15 \
-    --max_extra_id 118 \
+    --max_extra_id 100 \
     --source_max_token_len 512 \
     --target_max_token_len 512 \
 "
 
 MODEL_ARGS="
     --seed 1990303 \
-    --model_type fengshent5 \
-    --model_name /cognitive_comp/zhuxinyu/pretrained_models/IDEA-CCNL/Randeng-770M \
+    --model_type mt5 \
+    --model_name /cognitive_comp/zhuxinyu/pretrained_models/google/mt5-large \
     --lr 1e-3 \
     --l2 0. \
     --warmup 0.1 \

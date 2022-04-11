@@ -3,7 +3,7 @@ import os
 import json
 import pandas as pd
 from LAC import LAC
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Callable
 import numpy as np
 import collections
 
@@ -90,8 +90,8 @@ def is_start_piece(piece):
 
 def create_masked_lm_predictions(
         tokens: List[int],
-        vocab_id_list: List[int],
-        vocab_id_to_token_dict: Dict[int, str],
+        vocab_size: int,
+        convert_ids_to_tokens: Callable,
         masked_lm_prob: float,
         cls_id: int,
         sep_id: int,
@@ -125,11 +125,11 @@ def create_masked_lm_predictions(
         # at all -- we still predict each WordPiece independently, softmaxed
         # over the entire vocabulary.
         if (do_whole_word_mask and len(cand_indexes) >= 1 and
-                not is_start_piece(vocab_id_to_token_dict[token])):
+                not is_start_piece(convert_ids_to_tokens(token))):
             cand_indexes[-1].append(i)
         else:
             cand_indexes.append([i])
-            if is_start_piece(vocab_id_to_token_dict[token]):
+            if is_start_piece(convert_ids_to_tokens(token)):
                 token_boundary[i] = 1
 
     output_tokens = list(tokens)
@@ -220,7 +220,7 @@ def create_masked_lm_predictions(
                         masked_token = tokens[index]
                     # 10% of the time, replace with random word
                     else:
-                        masked_token = vocab_id_list[np_rng.randint(0, len(vocab_id_list))]
+                        masked_token = np_rng.randint(0, vocab_size)
             elif masking_style == "t5":
                 masked_token = mask_id
             else:
@@ -320,45 +320,91 @@ def convert_megatron_mask_tokens_to_extra_id(
 
     # Add the remaining tokens to the t5 input
     t5_input.extend(tokens[start_index:])
+    labels.append(extra_token_ids.popleft())
 
     return t5_input, labels
 
 
-if __name__ == "__main__":
-    from fengshen import T5Tokenizer
-    text = "答案：易烊千玺生于清朝咸丰元年（1854年）生。年（1853年）生。籍贯汉城，族亦2008年汉手欠年婚年（1988年）生后生年"
-    tokenizer = T5Tokenizer.from_pretrained("/cognitive_comp/zhuxinyu/pretrained_models/IDEA-CCNL/Randeng-770M/")
-    tokens = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(text))
-    target_seq_length = 256
-    max_num_tokens = target_seq_length
-    truncated = len(tokens) > max_num_tokens
-    tokens = tokens[:max_num_tokens]
-    masked_lm_prob = 0.15
+class DataProcessor(object):
+  """Base class for data converters for sequence classification data sets."""
 
-    # Masking.
-    max_predictions_per_seq = masked_lm_prob * max_num_tokens
-    vocab_id_list = list(tokenizer.vocab.values()) + tokenizer.additional_special_tokens_ids
-    vocab_id_to_token_dict = tokenizer.ids_to_tokens
-    vocab_id_to_token_dict.update({k: v for k, v in zip(tokenizer.additional_special_tokens_ids, tokenizer.additional_special_tokens)})
-    (tokens, masked_positions, masked_labels, _, masked_spans) = create_masked_lm_predictions(tokens,
-                                           vocab_id_list=vocab_id_list,
-                                           vocab_id_to_token_dict=vocab_id_to_token_dict,
-                                           masked_lm_prob=0.15,
-                                           cls_id=tokenizer.cls_token_id,
-                                           sep_id=tokenizer.sep_token_id,
-                                           mask_id=tokenizer.mask_token_id,
-                                           max_predictions_per_seq=118,
-                                           np_rng=np.random.RandomState(20020206),
-                                           max_ngrams=3,
-                                           do_whole_word_mask=True,
-                                           favor_longer_ngram=False,
-                                           do_permutation=False,
-                                           geometric_dist=False,
-                                           masking_style="t5",
-                                           )
-    print(tokenizer.decode(tokens))
-    print(tokenizer.decode(masked_labels))
-    tokens_enc, tokens_dec_in = convert_megatron_mask_tokens_to_extra_id(tokens, tokenizer.additional_special_tokens_ids[2:], masked_spans)
-    print(tokenizer.decode(tokens_enc))
-    print(tokenizer.decode(tokens_dec_in))
+  def get_train_examples(self, data_dir):
+    """Gets a collection of `InputExample`s for the train set."""
+    raise NotImplementedError()
+
+  def get_dev_examples(self, data_dir):
+    """Gets a collection of `InputExample`s for the dev set."""
+    raise NotImplementedError()
+
+  def get_test_examples(self, data_dir):
+    """Gets a collection of `InputExample`s for prediction."""
+    raise NotImplementedError()
+
+  def get_labels(self):
+    """Gets the list of labels for this data set."""
+    raise NotImplementedError()
+
+  @classmethod
+  def _read_json(cls, input_file):
+    """Reads a JSON file."""
+    with open(input_file, "r") as f:
+      return json.load(f)
+
+  @classmethod
+  def _read_jsonl(cls, input_file):
+    """Reads a JSON Lines file."""
+    with open(input_file, "r") as f:
+      return [json.loads(ln) for ln in f]
+
+
+if __name__ == "__main__":
+    from fengshen import T5Tokenizer as fengshenT5Tokenizer
+    from transformers import T5Tokenizer, MT5Tokenizer
+
+    text = "IDEA研究院正式宣布，我们开启'封神榜'大模型开源计划。在这个计划中，我们全方面的开源一系列的自然语言预训练大模型，它们将覆盖不同的模型结构、不同的模型尺寸、不同的专业领域。而且我们承诺，我们将对这些模型做持续的升级，不断融合最新的数据和最新的训练算法。通过我们IDEA研究院的努力，我们打造中文认知智能的通用基础设施，避免重复建设，我们为全社会节省算力。The recent “Text-to-Text Transfer Transformer” (T5) leveraged a unified text-to-text format and scale to attain state-of-the-art results on a wide variety of English-language NLP tasks. In this paper, we introduce mT5, a multilingual variant of T5 that was pre-trained on a new Common Crawl-based dataset covering 101 languages. We detail the design and modified training of mT5 and demonstrate its state-of-the-art performance on many multilingual benchmarks. We also describe a simple technique to prevent “accidental translation” in the zero-shot setting, where a generative model chooses to (partially) translate its prediction into the wrong language. All of the code and model checkpoints used in this work are publicly available."
+    fengshen_tokenizer = fengshenT5Tokenizer.from_pretrained("/cognitive_comp/zhuxinyu/pretrained_models/IDEA-CCNL/Randeng-770M/")
+    t5base_tokenizer = T5Tokenizer.from_pretrained("/cognitive_comp/zhuxinyu/pretrained_models/t5-base/")
+    mt5base_tokenizer = T5Tokenizer.from_pretrained("/cognitive_comp/zhuxinyu/pretrained_models/google/mt5-base")
+    mengzi_tokenizer = T5Tokenizer.from_pretrained("/cognitive_comp/zhuxinyu/pretrained_models/mengzi-t5-base")
+    model_names = ["fengshen", "t5-base", "mt5-base", "mengzi"]
+    tokenizers = [fengshen_tokenizer, t5base_tokenizer, mt5base_tokenizer, mengzi_tokenizer]
+    for name, tokenizer in zip(model_names, tokenizers):
+        print('-' * 50)
+        print(f"Current tokenizer from model {name}.")
+        tokens = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(text))
+        max_num_tokens = 1024
+        truncated = len(tokens) > max_num_tokens
+        tokens = tokens[:max_num_tokens]
+        masked_lm_prob = 0.15
+        max_extra_id = 100
+
+        # Masking.
+        max_predictions_per_seq = masked_lm_prob * max_num_tokens
+        #  vocab_id_list = list(tokenizer.vocab.values()) + tokenizer.additional_special_tokens_ids
+        #  vocab_id_to_token_dict = tokenizer.ids_to_tokens
+        #  vocab_id_to_token_dict.update({k: v for k, v in zip(tokenizer.additional_special_tokens_ids, tokenizer.additional_special_tokens)})
+        (tokens, masked_positions, masked_labels, _, masked_spans) = create_masked_lm_predictions(tokens,
+                                               vocab_size=tokenizer.vocab_size,
+                                               convert_ids_to_tokens=tokenizer.convert_ids_to_tokens,
+                                               masked_lm_prob=0.15,
+                                               cls_id=tokenizer.cls_token_id,
+                                               sep_id=tokenizer.sep_token_id,
+                                               mask_id=tokenizer.mask_token_id if tokenizer.mask_token_id is not None else tokenizer.unk_token_id,
+                                               max_predictions_per_seq=max_extra_id,
+                                               np_rng=np.random.RandomState(20020206),
+                                               max_ngrams=3,
+                                               do_whole_word_mask=True,
+                                               favor_longer_ngram=False,
+                                               do_permutation=False,
+                                               geometric_dist=False,
+                                               masking_style="t5",
+                                               )
+        #  print(tokenizer.decode(tokens))
+        #  print(tokenizer.decode(masked_labels))
+        extra_tokens = [f"<extra_id_{i}>" for i in range(max_extra_id)]
+        extra_token_ids = tokenizer.convert_tokens_to_ids(extra_tokens)
+        tokens_enc, tokens_dec_in = convert_megatron_mask_tokens_to_extra_id(tokens, extra_token_ids, masked_spans)
+        print(tokenizer.decode(tokens_enc))
+        print(tokenizer.decode(tokens_dec_in))
+        print('-' * 50)
 

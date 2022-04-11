@@ -1,9 +1,10 @@
 import os
+import argparse
 import time
 import json
 import torch
-import argparse
-from t5_modeling import Seq2SeqTrainer, BaseSeq2SeqModel, LightningDataModel, T5LightningModel, T5Dataset
+from t5_modeling import Seq2SeqTrainer, BaseSeq2SeqModel, T5LightningModel
+from data_model import LightningDataModel, T5Dataset
 from data_preprocess import get_data_lightning
 import pytorch_lightning as pl
 #os.environ["CUDA_VISIBLE_DEVICES"] = "6"
@@ -39,7 +40,7 @@ def train():
     model_prefix = f"{os.path.split(args.model_name)[-1]}"
     data_prefix = "celebrity-cmrc-separated"
     timestamp = time.strftime("%m-%d_%H-%M", time.localtime(time.time()))
-    save_dir = os.path.join(save_dir, model_prefix + '-' + data_prefix + '-'  + timestamp)
+    save_dir = os.path.join(save_dir, model_prefix + '-' + data_prefix + '-'  + timestamp + '-' + args.training_objective)
     args.save_dir = save_dir
 
     # create model and trainer
@@ -91,7 +92,7 @@ def train():
             train_dataset=train_dataset,
             valid_dataset=valid_dataset if args.valid_data else None,
             test_dataset=test_dataset if args.test_data else None,
-            train_batch_size=args.train_batch_size,
+            micro_batch_size=args.micro_batch_size,
             valid_batch_size=args.valid_batch_size,
             num_workers=args.num_workers,
             )
