@@ -68,6 +68,7 @@ def train():
         target_max_token_len=args.target_max_token_len,
         corruption_rate=args.corruption_rate,
         max_extra_id=args.max_extra_id,
+        training_objective=args.training_objective,
     )
     if args.valid_data:
         valid_dataset = T5Dataset(
@@ -77,6 +78,7 @@ def train():
             target_max_token_len=args.target_max_token_len,
             corruption_rate=args.corruption_rate,
             max_extra_id=args.max_extra_id,
+            training_objective=args.training_objective,
         )
     if args.test_data:
         test_dataset = T5Dataset(
@@ -86,6 +88,7 @@ def train():
             target_max_token_len=args.target_max_token_len,
             corruption_rate=args.corruption_rate,
             max_extra_id=args.max_extra_id,
+            training_objective=args.training_objective,
         )
 
     data_model = LightningDataModel(

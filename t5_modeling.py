@@ -58,7 +58,7 @@ class BaseSeq2SeqModel(pl.LightningModule):
         parser.add_argument('--l2', default=0., type=float)
         parser.add_argument('--warmup', default=0.1, type=float)
         parser.add_argument('--show_training_ex', default=-1, type=int)
-        parser.add_argument('--model_type', default=None, type=str)
+        parser.add_argument('--model_type', default=None, type=str, help="Acceptable model type: [t5, mt5, fengshent5]")
         parser.add_argument('--model_name', default=None, type=str)
         parser.add_argument('--training_objective', default="span_corruption", type=str, help="Acceptable objectives: [span_corruption, prefix_lm]")
 
@@ -135,7 +135,7 @@ class BaseSeq2SeqModel(pl.LightningModule):
             print('-' * 50)
             print('input_token:     ', input_tokens.replace(self.tokenizer.pad_token, ''))
             print('-' * 50)
-            print('predicted_tokens:', predicted_tokens.replace(self.tokenizer.pad_token,'').split(self.tokenizer.eos_token)[0])
+            print('predicted_tokens:', predicted_tokens.replace(self.tokenizer.pad_token,''))
             print('-' * 50)
             print('labels_tokens:   ', labels_tokens.replace(self.tokenizer.pad_token,''))
             print('-' * 50)

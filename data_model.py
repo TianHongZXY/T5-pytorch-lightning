@@ -193,6 +193,7 @@ class T5Dataset(Dataset):
         target_max_token_len: int = 512,
         corruption_rate: float = 0.15,
         max_extra_id: int = 100,
+        training_objective: str = "span_corruption",
     ):
         """
         Dataset for training T5
@@ -211,6 +212,7 @@ class T5Dataset(Dataset):
         assert all(isinstance(t, str) for t in raw_text)
 
         self.raw_text = raw_text
+        self.training_objective = training_objective
         self.tokenized_text = []
         self.tokenized_ids = []
 
@@ -288,13 +290,13 @@ class T5Dataset(Dataset):
         if str_context.startswith("问题:") or str_context.startswith("问题："):
             context_row = self.qa_getitem(str_context)
         # span corruption data
-        elif self.args.training_objective == "span_corruption":
+        elif self.training_objective == "span_corruption":
             context_row = self.corruption_getitem(index)
         # prefix lm data
-        elif self.args.training_objective == "prefix_lm":
+        elif self.training_objective == "prefix_lm":
             context_row = self.prefix_lm_getitem(str_context)
         else:
-            raise ValueError(f"Training objective `{self.args.training_objective}` is not acceptable!")
+            raise ValueError(f"Training objective `{self.training_objective}` is not acceptable!")
 
         # tokenize separately 
         source_text = context_row[0]
