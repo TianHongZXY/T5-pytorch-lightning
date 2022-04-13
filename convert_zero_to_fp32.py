@@ -24,7 +24,7 @@ if __name__ == "__main__":
         help="path to the desired checkpoint folder, e.g., path/checkpoint-12")
     parser.add_argument(
         "--output_file",
-        default="lightning_model.pt",
+        default="pytorch_model.bin",
         type=str,
         help="path to the pytorch fp32 state_dict output file (e.g. path/checkpoint-12/pytorch_model.bin)"
     )

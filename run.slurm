@@ -99,6 +99,7 @@ MODEL_ARGS="
     --l2 0. \
     --warmup 0.1 \
     --show_training_ex 100 \
+    --training_objective span_corruption \
 "
 
 SCRIPTS_PATH=$ROOT_DIR/t5_training_cnt.py
